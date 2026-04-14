@@ -21,6 +21,8 @@ Press **F5** in VS Code with this folder open (**Run Extension**). In the Extens
 
 ## Package
 
+`npm run package` runs `@vscode/vsce`. **Use Node.js 20 LTS or newer** for this step (Node 18 can throw `ReferenceError: File is not defined` from transitive dependencies).
+
 ```bash
 npm run package
 ```
