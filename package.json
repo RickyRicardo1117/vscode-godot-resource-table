@@ -1,0 +1,49 @@
+{
+  "name": "godot-resource-table",
+  "displayName": "Godot Resource Table",
+  "description": "Edit many Godot .tres files in a sortable, resizable spreadsheet view.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=18"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:godotResourceTable.openFolder"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "godotResourceTable.openFolder",
+        "title": "Godot Resource Table: Open Folder"
+      },
+      {
+        "command": "godotResourceTable.refresh",
+        "title": "Godot Resource Table: Refresh",
+        "enablement": "godotResourceTable.panelActive"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "godotResourceTable.refresh",
+          "when": "godotResourceTable.panelActive"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.0"
+  }
+}
