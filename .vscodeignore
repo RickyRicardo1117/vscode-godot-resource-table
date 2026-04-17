@@ -9,4 +9,3 @@ src/**
 node_modules/**
 !node_modules/@types/**
 tests/**
-*.vsix
