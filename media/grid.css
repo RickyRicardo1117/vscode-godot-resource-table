@@ -93,8 +93,10 @@ tbody td {
   padding: 2px 6px;
   vertical-align: top;
   max-width: 480px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
 }
 
 tbody td.readonly {
@@ -103,8 +105,102 @@ tbody td.readonly {
   opacity: 0.9;
 }
 
+tbody td.readonly.not-applicable {
+  background: color-mix(in srgb, var(--ro-bg) 70%, var(--bg));
+  color: var(--vscode-disabledForeground, rgba(160, 160, 160, 0.55));
+  opacity: 0.65;
+  cursor: not-allowed;
+  user-select: none;
+}
+
+tbody td.at-default {
+  color: var(--vscode-descriptionForeground, rgba(160, 160, 160, 0.92));
+}
+
 tbody td.editable {
   cursor: cell;
+}
+
+tbody td.editable.cell-bool {
+  vertical-align: middle;
+  cursor: default;
+}
+
+.cell-bool-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  width: 36px;
+  height: 20px;
+}
+
+.cell-bool-input {
+  position: absolute;
+  inset: 0;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.cell-bool-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  pointer-events: none;
+  border-radius: 10px;
+  background: var(
+    --vscode-input-background,
+    var(--vscode-editor-background, rgba(127, 127, 127, 0.35))
+  );
+  border: 1px solid
+    var(
+      --vscode-input-border,
+      var(--vscode-panel-border, var(--vscode-widget-border, var(--border)))
+    );
+  box-sizing: border-box;
+  transition: background 0.12s ease;
+}
+
+.cell-bool-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(
+    --vscode-input-foreground,
+    var(--vscode-editor-foreground, var(--fg))
+  );
+  opacity: 0.92;
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.cell-bool-input:checked + .cell-bool-track {
+  background: var(
+    --vscode-inputOption-activeBackground,
+    var(--vscode-button-background, rgba(0, 127, 212, 0.45))
+  );
+  border-color: var(
+    --vscode-inputOption-activeBorder,
+    var(--vscode-focusBorder, var(--focus))
+  );
+}
+
+.cell-bool-input:checked + .cell-bool-track .cell-bool-thumb {
+  transform: translateX(16px);
+}
+
+.cell-bool-input:focus-visible + .cell-bool-track {
+  outline: 1px solid var(--focus);
+  outline-offset: 2px;
 }
 
 tbody td.editing {
@@ -113,14 +209,95 @@ tbody td.editing {
 }
 
 tbody td .cell-input {
+  display: block;
   width: 100%;
-  min-width: 120px;
+  min-width: 0;
+  max-width: 100%;
   border: none;
   background: transparent;
   color: inherit;
   font: inherit;
-  padding: 4px 2px;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
   outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+textarea.cell-input {
+  resize: none;
+  max-height: min(50vh, 320px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 1.4em;
+}
+
+/*
+ * Native <select> ignores inherited cell color; drive fg/bg from VS Code theme tokens so
+ * dark and light themes both match the editor (see also option rules below).
+ */
+select.cell-input-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 2px 4px;
+  font: inherit;
+  line-height: inherit;
+  color: var(
+    --vscode-dropdown-foreground,
+    var(
+      --vscode-settings-dropdownForeground,
+      var(--vscode-input-foreground, var(--vscode-foreground, var(--fg)))
+    )
+  );
+  background-color: var(
+    --vscode-dropdown-background,
+    var(
+      --vscode-settings-dropdownBackground,
+      var(--vscode-input-background, var(--vscode-editor-background, var(--bg)))
+    )
+  );
+  border: 1px solid
+    var(
+      --vscode-dropdown-border,
+      var(
+        --vscode-settings-dropdownBorder,
+        var(--vscode-input-border, var(--vscode-panel-border, var(--border)))
+      )
+    );
+  border-radius: 2px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+select.cell-input-select option,
+select.cell-input-select optgroup {
+  color: var(
+    --vscode-dropdown-foreground,
+    var(
+      --vscode-settings-dropdownForeground,
+      var(--vscode-input-foreground, var(--vscode-foreground, var(--fg)))
+    )
+  );
+  background-color: var(
+    --vscode-dropdown-listBackground,
+    var(
+      --vscode-dropdown-background,
+      var(
+        --vscode-settings-dropdownBackground,
+        var(--vscode-input-background, var(--vscode-editor-background, var(--bg)))
+      )
+    )
+  );
+}
+
+select.cell-input-select:focus {
+  outline: 1px solid var(--focus);
+  outline-offset: -1px;
 }
 
 tbody tr:nth-child(even) td:not(.readonly) {
@@ -131,4 +308,77 @@ tbody tr:nth-child(even) td:not(.readonly) {
   margin-left: 6px;
   opacity: 0.5;
   font-size: 11px;
+}
+
+/* Horizontal pin: one column uses sticky left:0 (slides to scrollport edge when scrolled) */
+thead th.col-frozen {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  background: var(--header-bg);
+}
+
+tbody td.col-frozen {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  /* Stacked over scrolling cells: must be fully opaque (no rgba zebra / readonly opacity bleed-through). */
+  opacity: 1;
+}
+
+thead th.col-frozen-edge,
+tbody td.col-frozen-edge {
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.18);
+}
+
+tbody td.col-frozen:not(.readonly) {
+  background: var(--vscode-editor-background, var(--bg));
+}
+
+tbody tr:nth-child(even) td.col-frozen:not(.readonly) {
+  background: color-mix(in srgb, var(--vscode-editor-background, var(--bg)) 94%, rgb(127 127 127) 6%);
+}
+
+tbody td.col-frozen.readonly {
+  background: var(--ro-bg);
+}
+
+tbody td.col-frozen.readonly.not-applicable {
+  background: color-mix(in srgb, var(--ro-bg) 70%, var(--bg));
+}
+
+.ctx-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 220px;
+  padding: 4px 0;
+  margin: 0;
+  list-style: none;
+  background: var(--vscode-menu-background, var(--header-bg));
+  color: var(--vscode-menu-foreground, var(--fg));
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+}
+
+.ctx-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctx-menu button:hover {
+  background: var(--vscode-menu-selectionBackground, rgba(127, 127, 127, 0.25));
+}
+
+.ctx-menu button:focus {
+  outline: 1px solid var(--focus);
+  outline-offset: -2px;
 }

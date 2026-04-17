@@ -10,6 +10,8 @@
   let colWidths = {};
   let sortCol = "";
   let sortDir = 1; // 1 asc, -1 desc
+  /** @type {string | null} Column id to pin with horizontal sticky (this column only). */
+  let frozenThroughCol = null;
 
   const $toolbar = document.getElementById("toolbar");
   const $meta = document.getElementById("meta");
@@ -18,18 +20,152 @@
 
   window.addEventListener("message", (event) => {
     const msg = event.data;
+    if (msg.type === "themeColorScheme" && (msg.colorScheme === "light" || msg.colorScheme === "dark")) {
+      document.documentElement.style.colorScheme = msg.colorScheme;
+      return;
+    }
     if (msg.type === "data") {
       columns = msg.columns || [];
       rows = (msg.rows || []).map((r) => ({ ...r }));
       colWidths = msg.colWidths || {};
-      sortCol = "";
-      sortDir = 1;
+      if (Object.prototype.hasOwnProperty.call(msg, "frozenThroughCol")) {
+        frozenThroughCol = msg.frozenThroughCol;
+      }
+      if (sortCol && !columns.includes(sortCol)) {
+        sortCol = "";
+        sortDir = 1;
+      }
       if ($meta) {
         $meta.textContent = `${rows.length} resources · ${msg.rootPath || ""}`;
       }
       render();
     }
   });
+
+  function frozenThroughIndex() {
+    if (!frozenThroughCol || columns.length === 0) {
+      return -1;
+    }
+    const idx = columns.indexOf(frozenThroughCol);
+    return idx >= 0 ? idx : -1;
+  }
+
+  function applyFrozenColumnLayout() {
+    const ftIdx = frozenThroughIndex();
+    const ths = $thead.querySelectorAll("th");
+    const trs = $tbody.querySelectorAll("tr");
+    for (let i = 0; i < columns.length; i += 1) {
+      const th = ths[i];
+      if (!th) {
+        continue;
+      }
+      const frozen = ftIdx >= 0 && i === ftIdx;
+      if (frozen) {
+        th.classList.add("col-frozen", "col-frozen-edge");
+        for (const tr of trs) {
+          const td = tr.children[i];
+          if (!td) {
+            continue;
+          }
+          td.classList.add("col-frozen", "col-frozen-edge");
+        }
+      } else {
+        th.classList.remove("col-frozen", "col-frozen-edge");
+        for (const tr of trs) {
+          const td = tr.children[i];
+          if (td) {
+            td.classList.remove("col-frozen", "col-frozen-edge");
+          }
+        }
+      }
+    }
+  }
+
+  function scheduleFrozenLayout() {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        applyFrozenColumnLayout();
+      });
+    });
+  }
+
+  let ctxMenuEl = null;
+  /** @type {((e: MouseEvent) => void) | null} */
+  let ctxMenuDocClick = null;
+
+  function closeCtxMenu() {
+    if (ctxMenuEl && ctxMenuEl.parentNode) {
+      ctxMenuEl.parentNode.removeChild(ctxMenuEl);
+    }
+    ctxMenuEl = null;
+    if (ctxMenuDocClick) {
+      document.removeEventListener("click", ctxMenuDocClick, true);
+      ctxMenuDocClick = null;
+    }
+    document.removeEventListener("keydown", onCtxMenuKey, true);
+  }
+
+  function onCtxMenuKey(e) {
+    if (e.key === "Escape") {
+      closeCtxMenu();
+    }
+  }
+
+  function showHeaderContextMenu(clientX, clientY, col) {
+    closeCtxMenu();
+    const menu = document.createElement("div");
+    menu.className = "ctx-menu";
+    menu.setAttribute("role", "menu");
+
+    const btnFreeze = document.createElement("button");
+    btnFreeze.type = "button";
+    btnFreeze.textContent = `Pin column “${col}”`;
+    btnFreeze.addEventListener("click", () => {
+      closeCtxMenu();
+      frozenThroughCol = col;
+      vscode.postMessage({ type: "frozenColumns", frozenThroughCol: col });
+      scheduleFrozenLayout();
+    });
+
+    const btnUnfreeze = document.createElement("button");
+    btnUnfreeze.type = "button";
+    btnUnfreeze.textContent = "Unpin column";
+    btnUnfreeze.addEventListener("click", () => {
+      closeCtxMenu();
+      frozenThroughCol = null;
+      vscode.postMessage({ type: "frozenColumns", frozenThroughCol: null });
+      scheduleFrozenLayout();
+    });
+
+    menu.appendChild(btnFreeze);
+    menu.appendChild(btnUnfreeze);
+    document.body.appendChild(menu);
+    ctxMenuEl = menu;
+
+    const pad = 4;
+    let x = clientX;
+    let y = clientY;
+    const rect = menu.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth - pad) {
+      x = window.innerWidth - rect.width - pad;
+    }
+    if (y + rect.height > window.innerHeight - pad) {
+      y = window.innerHeight - rect.height - pad;
+    }
+    menu.style.left = `${Math.max(pad, x)}px`;
+    menu.style.top = `${Math.max(pad, y)}px`;
+
+    ctxMenuDocClick = (e) => {
+      if (!ctxMenuEl || ctxMenuEl.contains(/** @type {Node} */ (e.target))) {
+        return;
+      }
+      closeCtxMenu();
+    };
+    setTimeout(() => {
+      document.addEventListener("click", ctxMenuDocClick, true);
+      document.addEventListener("keydown", onCtxMenuKey, true);
+    }, 0);
+  }
 
   function sortRows() {
     if (!sortCol) {
@@ -63,6 +199,7 @@
       if (w) {
         th.style.width = w + "px";
         th.style.minWidth = w + "px";
+        th.style.maxWidth = w + "px";
       }
       const label = document.createElement("span");
       label.textContent = col;
@@ -73,6 +210,10 @@
         label.appendChild(mark);
       }
       th.appendChild(label);
+      th.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        showHeaderContextMenu(e.clientX, e.clientY, col);
+      });
       th.addEventListener("click", (e) => {
         if (e.target.classList && e.target.classList.contains("resize")) {
           return;
@@ -98,12 +239,14 @@
           const nw = Math.max(48, startW + (e2.clientX - startX));
           th.style.width = nw + "px";
           th.style.minWidth = nw + "px";
+          th.style.maxWidth = nw + "px";
           colWidths[col] = nw;
         }
         function onUp() {
           window.removeEventListener("mousemove", onMove);
           window.removeEventListener("mouseup", onUp);
           vscode.postMessage({ type: "colWidths", colWidths: { ...colWidths } });
+          scheduleFrozenLayout();
         }
         window.addEventListener("mousemove", onMove);
         window.addEventListener("mouseup", onUp);
@@ -116,45 +259,223 @@
       const tr = document.createElement("tr");
       for (const col of columns) {
         const td = document.createElement("td");
+        const cw = colWidths[col];
+        if (cw) {
+          td.style.width = cw + "px";
+          td.style.minWidth = cw + "px";
+          td.style.maxWidth = cw + "px";
+        }
         const cell = row.cells[col];
         if (!cell || !cell.editable) {
           td.className = "readonly";
+          if (cell && cell.applicable === false) {
+            td.classList.add("not-applicable");
+            td.setAttribute("aria-disabled", "true");
+          }
+          if (cell && cell.atScriptDefault) {
+            td.classList.add("at-default");
+          }
           td.textContent = cell ? cell.displayText : "";
         } else {
           td.className = "editable";
-          td.textContent = cell.displayText;
-          td.tabIndex = 0;
-          td.addEventListener("dblclick", () => beginEdit(td, row, col, cell));
-          td.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !td.classList.contains("editing")) {
-              e.preventDefault();
-              beginEdit(td, row, col, cell);
-            }
-          });
+          if (cell.atScriptDefault) {
+            td.classList.add("at-default");
+          }
+          if (cell.kind === "bool") {
+            mountBoolToggle(td, row, col, cell);
+          } else {
+            td.textContent = cell.displayText;
+            td.tabIndex = 0;
+            td.addEventListener("click", () => beginEdit(td, row, col, cell));
+            td.addEventListener("keydown", (e) => {
+              if (e.key === "Enter" && !td.classList.contains("editing")) {
+                e.preventDefault();
+                beginEdit(td, row, col, cell);
+              }
+            });
+          }
         }
         tr.appendChild(td);
       }
       $tbody.appendChild(tr);
     }
+    scheduleFrozenLayout();
+  }
+
+  function bindTextareaAutosize(ta) {
+    const resize = () => {
+      ta.style.height = "0";
+      ta.style.height = `${ta.scrollHeight}px`;
+    };
+    ta.addEventListener("input", resize);
+    resize();
+  }
+
+  function mountBoolToggle(td, row, col, cell) {
+    td.classList.add("cell-bool");
+    td.innerHTML = "";
+    const label = document.createElement("label");
+    label.className = "cell-bool-toggle";
+    label.setAttribute("aria-label", col);
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.className = "cell-bool-input";
+    const raw = String(cell.rawValue ?? cell.displayText ?? "")
+      .trim()
+      .toLowerCase();
+    input.checked = raw === "true";
+    const track = document.createElement("span");
+    track.className = "cell-bool-track";
+    const thumb = document.createElement("span");
+    thumb.className = "cell-bool-thumb";
+    track.appendChild(thumb);
+    label.appendChild(input);
+    label.appendChild(track);
+    td.appendChild(label);
+
+    input.addEventListener("change", () => {
+      const newText = input.checked ? "true" : "false";
+      vscode.postMessage({
+        type: "applyEdit",
+        absPath: row.absPath,
+        col,
+        newText,
+        prevDisplay: cell.displayText,
+        kind: cell.kind,
+      });
+    });
+  }
+
+  function beginEnumSelectEdit(td, row, col, cell) {
+    td.classList.add("editing");
+    td.innerHTML = "";
+    const members = cell.enumMembers;
+    const sorted = [...members].sort((a, b) => a.value - b.value);
+    const rawTrim = String(cell.rawValue ?? "").trim();
+    const currentNum = Number.parseInt(rawTrim, 10);
+    const hasValidNum = !Number.isNaN(currentNum);
+    const valueSet = new Set(sorted.map((m) => m.value));
+
+    const sel = document.createElement("select");
+    sel.className = "cell-input cell-input-select";
+    sel.setAttribute("aria-label", col);
+
+    if (hasValidNum && !valueSet.has(currentNum)) {
+      const orphan = document.createElement("option");
+      orphan.value = String(currentNum);
+      orphan.textContent = cell.displayText ?? String(currentNum);
+      sel.appendChild(orphan);
+    }
+    for (const m of sorted) {
+      const opt = document.createElement("option");
+      opt.value = String(m.value);
+      opt.textContent = m.name;
+      sel.appendChild(opt);
+    }
+    if (hasValidNum) {
+      sel.value = String(currentNum);
+    }
+    const initialValue = sel.value;
+
+    td.appendChild(sel);
+    sel.focus();
+
+    let finished = false;
+
+    function teardownListeners() {
+      sel.removeEventListener("blur", onBlur);
+      sel.removeEventListener("change", onChange);
+    }
+
+    function cancelSelect() {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      teardownListeners();
+      td.classList.remove("editing");
+      td.textContent = cell.displayText ?? "";
+    }
+
+    function commitSelect() {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      teardownListeners();
+      const newText = sel.value;
+      td.classList.remove("editing");
+      td.innerHTML = "";
+      const chosen = sorted.find((m) => String(m.value) === newText);
+      td.textContent = chosen !== undefined ? chosen.name : cell.displayText ?? newText;
+      vscode.postMessage({
+        type: "applyEdit",
+        absPath: row.absPath,
+        col,
+        newText,
+        prevDisplay: cell.displayText,
+        kind: cell.kind,
+      });
+    }
+
+    function onChange() {
+      if (sel.value !== initialValue) {
+        commitSelect();
+      }
+    }
+
+    function onBlur() {
+      if (finished || !td.classList.contains("editing")) {
+        return;
+      }
+      if (sel.value !== initialValue) {
+        commitSelect();
+      } else {
+        cancelSelect();
+      }
+    }
+
+    sel.addEventListener("change", onChange);
+    sel.addEventListener("blur", onBlur);
+    sel.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelSelect();
+      }
+    });
   }
 
   function beginEdit(td, row, col, cell) {
     if (td.classList.contains("editing")) {
       return;
     }
+    if (cell.kind === "bool") {
+      return;
+    }
+    if (
+      cell.kind === "enum" &&
+      Array.isArray(cell.enumMembers) &&
+      cell.enumMembers.length > 0
+    ) {
+      beginEnumSelectEdit(td, row, col, cell);
+      return;
+    }
     td.classList.add("editing");
     td.innerHTML = "";
-    const input = document.createElement("input");
-    input.className = "cell-input";
-    input.value = cell.displayText ?? "";
-    td.appendChild(input);
-    input.focus();
-    input.select();
+    const el = document.createElement("textarea");
+    el.className = "cell-input";
+    el.value = cell.displayText ?? "";
+    td.appendChild(el);
+    bindTextareaAutosize(el);
+    el.focus();
+    el.select();
 
     function commit() {
-      const newText = input.value;
+      const newText = el.value;
       td.classList.remove("editing");
       td.innerHTML = "";
+      td.textContent = newText;
       vscode.postMessage({
         type: "applyEdit",
         absPath: row.absPath,
@@ -170,15 +491,26 @@
       td.textContent = cell.displayText ?? "";
     }
 
-    input.addEventListener("blur", () => commit());
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
+    function onBlur() {
+      commit();
+    }
+
+    el.addEventListener("blur", onBlur);
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.shiftKey) {
+        e.stopPropagation();
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        input.blur();
+        e.stopPropagation();
+        el.blur();
+        return;
       }
       if (e.key === "Escape") {
         e.preventDefault();
-        input.removeEventListener("blur", commit);
+        e.stopPropagation();
+        el.removeEventListener("blur", onBlur);
         cancel();
       }
     });
@@ -186,5 +518,9 @@
 
   document.getElementById("btnRefresh")?.addEventListener("click", () => {
     vscode.postMessage({ type: "refresh" });
+  });
+
+  window.addEventListener("resize", () => {
+    scheduleFrozenLayout();
   });
 })();

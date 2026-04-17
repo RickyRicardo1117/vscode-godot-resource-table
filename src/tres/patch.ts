@@ -12,15 +12,17 @@ export function patchResourceProperty(
   const lines: string[] = parsed.rawText.split("\n");
   const prop: ResourceProperty | undefined = parsed.properties.find((p: ResourceProperty) => p.key === key);
   if (prop !== undefined) {
-    const idx: number = prop.lineIndex;
-    const oldLine: string = lines[idx];
+    const startIdx: number = prop.lineIndex;
+    const endIdx: number = prop.lineIndexEnd;
+    const oldLine: string = lines[startIdx];
     const eq: number = oldLine.indexOf("=");
     if (eq <= 0) {
       return undefined;
     }
     const lhs: string = oldLine.slice(0, eq + 1);
     const newLine: string = `${lhs} ${newRhs}`;
-    lines[idx] = newLine;
+    const span: number = endIdx - startIdx + 1;
+    lines.splice(startIdx, span, newLine);
     return lines.join("\n");
   }
   return insertPropertyBeforeEnd(parsed, key, newRhs, lines);
@@ -34,7 +36,7 @@ function insertPropertyBeforeEnd(
 ): string | undefined {
   const insertAfter: number =
     parsed.properties.length > 0
-      ? Math.max(...parsed.properties.map((p: ResourceProperty) => p.lineIndex))
+      ? Math.max(...parsed.properties.map((p: ResourceProperty) => p.lineIndexEnd))
       : parsed.resourceStartLine;
   const nextLine: string = `${key} = ${newRhs}`;
   lines.splice(insertAfter + 1, 0, nextLine);

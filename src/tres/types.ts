@@ -1,4 +1,11 @@
-export type CellKind = "bool" | "int" | "float" | "string" | "readonly";
+export type CellKind =
+  | "bool"
+  | "int"
+  | "float"
+  | "string"
+  | "vector3"
+  | "enum"
+  | "readonly";
 
 export interface ExtResourceEntry {
   readonly id: string;
@@ -9,8 +16,10 @@ export interface ExtResourceEntry {
 export interface ResourceProperty {
   readonly key: string;
   readonly rawValue: string;
-  /** 0-based line index in full file */
+  /** 0-based line index in full file (first line of `key = value`) */
   readonly lineIndex: number;
+  /** Last line index when the value spans multiple lines (quoted strings); otherwise equals `lineIndex`. */
+  readonly lineIndexEnd: number;
 }
 
 export interface ParsedTres {

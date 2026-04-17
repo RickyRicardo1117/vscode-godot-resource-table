@@ -81,11 +81,11 @@ function parseResourceProperties(
         combined += "\n" + lines[endIdx];
         quoteCount = countUnescapedQuotes(combined);
       }
-      props.push({ key, rawValue: combined, lineIndex: i });
+      props.push({ key, rawValue: combined, lineIndex: i, lineIndexEnd: endIdx });
       i = endIdx + 1;
       continue;
     }
-    props.push({ key, rawValue: valuePart, lineIndex: i });
+    props.push({ key, rawValue: valuePart, lineIndex: i, lineIndexEnd: i });
     i += 1;
   }
   return props;

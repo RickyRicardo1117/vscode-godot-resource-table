@@ -24,6 +24,39 @@ describe("parseTres", () => {
   });
 });
 
+const MULTILINE_DESC: string = `[gd_resource type="Resource" format=3]
+
+[resource]
+description = "line one
+line two"
+foo = 1
+`;
+
+describe("parseTres multiline quoted values", () => {
+  it("records line span for values split across lines", () => {
+    const p = parseTres(MULTILINE_DESC);
+    expect(p).toBeDefined();
+    const desc = p!.properties.find((x) => x.key === "description");
+    expect(desc?.rawValue).toBe('"line one\nline two"');
+    expect(desc?.lineIndex).toBe(3);
+    expect(desc?.lineIndexEnd).toBe(4);
+  });
+
+  it("patch replaces the full span without leaving continuation lines", () => {
+    const p = parseTres(MULTILINE_DESC)!;
+    const next = patchResourceProperty(p, "description", '"single"');
+    expect(next).toBeDefined();
+    expect(next!.split("\n")).toEqual([
+      "[gd_resource type=\"Resource\" format=3]",
+      "",
+      "[resource]",
+      'description = "single"',
+      "foo = 1",
+      "",
+    ]);
+  });
+});
+
 describe("patchResourceProperty", () => {
   it("replaces an existing primitive value", () => {
     const p = parseTres(SAMPLE)!;
