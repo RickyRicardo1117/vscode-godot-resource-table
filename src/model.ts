@@ -3,6 +3,7 @@ import * as path from "path";
 import {
   defaultExprToTresRhs,
   getMergedEnumContextForScript,
+  implicitGodotDefaultTresRhs,
   isLikelyEnumPropertyType,
   lookupEnumMembers,
   tresRhsMatchesScriptDefault,
@@ -26,6 +27,9 @@ import { extResourcePathMap, parseTres } from "./tres/parse";
 import type { ParsedTres } from "./tres/types";
 export const COL_FILE: string = "file";
 export const COL_SCRIPT_CLASS: string = "script_class";
+
+/** `[resource]` keys with these names cannot be shown as columns — they would overwrite the path / class columns. */
+const RESERVED_RESOURCE_CELL_KEYS: ReadonlySet<string> = new Set([COL_FILE, COL_SCRIPT_CLASS]);
 
 /** Serialized enum choices for `kind: "enum"` cells (webview dropdown). */
 export interface GridEnumMemberPayload {
@@ -137,18 +141,33 @@ function cellForOmittedProperty(
   if (enumCtx === undefined) {
     return emptyCell();
   }
-  if (!enumCtx.propTypes.has(propKey)) {
+  const knownOnScript: boolean =
+    enumCtx.propTypes.has(propKey) || enumCtx.exportDefaults.has(propKey);
+  if (!knownOnScript) {
     return notApplicableCell();
   }
   const defEx: string | undefined = enumCtx.exportDefaults.get(propKey);
-  if (defEx === undefined) {
-    return emptyCell();
+  let rhs: string | undefined;
+  if (defEx !== undefined) {
+    rhs = defaultExprToTresRhs(defEx, enumCtx);
   }
-  const rhs: string | undefined = defaultExprToTresRhs(defEx, enumCtx);
+  let filledFromImplicitTypeDefault: boolean = false;
+  if (rhs === undefined) {
+    const typeName: string | undefined = enumCtx.propTypes.get(propKey);
+    const implicitRhs: string | undefined = implicitGodotDefaultTresRhs(typeName);
+    if (implicitRhs !== undefined) {
+      rhs = implicitRhs;
+      filledFromImplicitTypeDefault = true;
+    }
+  }
   if (rhs === undefined) {
     return emptyCell();
   }
-  return cellForProperty(rhs, extPaths, propKey, enumCtx);
+  const cell: GridCellPayload = cellForProperty(rhs, extPaths, propKey, enumCtx);
+  if (filledFromImplicitTypeDefault) {
+    return { ...cell, atScriptDefault: true };
+  }
+  return cell;
 }
 
 function emptyCell(): GridCellPayload {
@@ -285,12 +304,16 @@ export async function buildGridPayload(rootPath: string, absPaths: readonly stri
       exportMemo
     );
     if (scriptOrder !== undefined) {
-      fileKeyOrders.push(scriptOrder);
+      fileKeyOrders.push(scriptOrder.filter((k: string) => !RESERVED_RESOURCE_CELL_KEYS.has(k)));
     } else {
-      fileKeyOrders.push(parsed.properties.map((p) => p.key));
+      fileKeyOrders.push(
+        parsed.properties.map((p) => p.key).filter((k: string) => !RESERVED_RESOURCE_CELL_KEYS.has(k))
+      );
     }
     for (const p of parsed.properties) {
-      keySet.add(p.key);
+      if (!RESERVED_RESOURCE_CELL_KEYS.has(p.key)) {
+        keySet.add(p.key);
+      }
     }
     const scriptGd: string | undefined = await resolveResourceScriptGdPath(
       parsed,
@@ -304,6 +327,12 @@ export async function buildGridPayload(rootPath: string, absPaths: readonly stri
     enumCtxByAbs.set(abs, enumCtx);
     extPathsByAbs.set(abs, extPaths);
     const cells: Record<string, GridCellPayload> = {};
+    for (const p of parsed.properties) {
+      if (RESERVED_RESOURCE_CELL_KEYS.has(p.key)) {
+        continue;
+      }
+      cells[p.key] = cellForProperty(p.rawValue, extPaths, p.key, enumCtx);
+    }
     cells[COL_FILE] = {
       displayText: rel.replace(/\\/g, "/"),
       rawValue: rel,
@@ -316,12 +345,11 @@ export async function buildGridPayload(rootPath: string, absPaths: readonly stri
       kind: "readonly",
       editable: false,
     };
-    for (const p of parsed.properties) {
-      cells[p.key] = cellForProperty(p.rawValue, extPaths, p.key, enumCtx);
-    }
     rows.push({ absPath: abs, relPath: rel, cells });
   }
-  const propColumns: string[] = orderPropertyKeysFromFileOrders(fileKeyOrders);
+  const propColumns: string[] = orderPropertyKeysFromFileOrders(fileKeyOrders).filter(
+    (k: string) => !RESERVED_RESOURCE_CELL_KEYS.has(k)
+  );
   const colSet: Set<string> = new Set(propColumns);
   const missing: string[] = [];
   for (const k of keySet) {

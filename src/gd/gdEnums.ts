@@ -256,6 +256,44 @@ function mergePropTypeMaps(
 }
 
 /**
+ * When an `@export` has no `=` / `:=` in source, Godot still applies type defaults (e.g. `bool` →
+ * `false`, custom enums → `0`, vectors → zero). Used to populate grid cells for keys omitted from `.tres`.
+ */
+export function implicitGodotDefaultTresRhs(typeName: string | undefined): string | undefined {
+  if (typeName === undefined || typeName === "") {
+    return undefined;
+  }
+  if (typeName === "bool") {
+    return "false";
+  }
+  if (typeName === "int") {
+    return "0";
+  }
+  if (typeName === "float") {
+    return "0.0";
+  }
+  if (typeName === "String" || typeName === "StringName") {
+    return escapeGodotString("");
+  }
+  if (typeName === "Vector2") {
+    return "Vector2(0, 0)";
+  }
+  if (typeName === "Vector2i") {
+    return "Vector2i(0, 0)";
+  }
+  if (typeName === "Vector3") {
+    return formatVector3Components({ x: 0, y: 0, z: 0 });
+  }
+  if (typeName === "Vector3i") {
+    return "Vector3i(0, 0, 0)";
+  }
+  if (isLikelyEnumPropertyType(typeName)) {
+    return "0";
+  }
+  return undefined;
+}
+
+/**
  * Turn a GDScript `@export` default expression into a `.tres` rhs when it is a literal bool, number,
  * string, `Vector3(...)`, or `EnumName.MEMBER`. Returns `undefined` for unsupported expressions.
  */

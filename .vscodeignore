@@ -9,3 +9,7 @@ src/**
 node_modules/**
 !node_modules/@types/**
 tests/**
+# Local Godot game fixtures (not part of the extension)
+air_lock.tres
+buildable_data.gd
+item_data.gd

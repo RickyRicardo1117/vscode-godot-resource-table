@@ -2,7 +2,7 @@
   "name": "godot-resource-table",
   "displayName": "Godot Resource Table",
   "description": "Edit many Godot .tres files in a sortable, resizable spreadsheet view.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "local",
   "engines": {
     "vscode": "^1.85.0",

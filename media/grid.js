@@ -185,7 +185,10 @@
 
   function cellText(row, col) {
     const c = row.cells[col];
-    return c ? String(c.displayText ?? "") : "";
+    if (c === null || c === undefined || typeof c !== "object") {
+      return "";
+    }
+    return String(c.displayText ?? "");
   }
 
   function render() {
@@ -266,16 +269,19 @@
           td.style.maxWidth = cw + "px";
         }
         const cell = row.cells[col];
-        if (!cell || !cell.editable) {
+        if (cell === null || cell === undefined || typeof cell !== "object" || cell.editable !== true) {
           td.className = "readonly";
-          if (cell && cell.applicable === false) {
+          if (cell !== null && cell !== undefined && typeof cell === "object" && cell.applicable === false) {
             td.classList.add("not-applicable");
             td.setAttribute("aria-disabled", "true");
           }
-          if (cell && cell.atScriptDefault) {
+          if (cell !== null && cell !== undefined && typeof cell === "object" && cell.atScriptDefault) {
             td.classList.add("at-default");
           }
-          td.textContent = cell ? cell.displayText : "";
+          td.textContent =
+            cell !== null && cell !== undefined && typeof cell === "object"
+              ? String(cell.displayText ?? "")
+              : "";
         } else {
           td.className = "editable";
           if (cell.atScriptDefault) {
@@ -284,7 +290,7 @@
           if (cell.kind === "bool") {
             mountBoolToggle(td, row, col, cell);
           } else {
-            td.textContent = cell.displayText;
+            td.textContent = String(cell.displayText ?? "");
             td.tabIndex = 0;
             td.addEventListener("click", () => beginEdit(td, row, col, cell));
             td.addEventListener("keydown", (e) => {
