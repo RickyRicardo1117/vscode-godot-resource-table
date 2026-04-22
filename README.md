@@ -2,7 +2,7 @@
 
 Spreadsheet-style view for editing many Godot 4 `.tres` files in a folder: sortable columns, resizable headers, and in-place edits for simple primitive fields (`bool`, `int`, `float`, `string`). `ExtResource`, arrays, and other complex values are shown read-only (see [Godot Resources as Sheets](https://github.com/don-tnowe/godot-resources-as-sheets-plugin) for a fuller in-editor workflow).
 
-WARNING: This was fully built with AI, use at your own risk. 
+WARNING: This was fully built with AI, use at your own risk.
 
 ## Requirements
 
