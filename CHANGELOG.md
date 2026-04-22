@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-04-22
+
+### Added
+
+- Extension **icon** for the Marketplace (`icon.png` via `package.json` `icon`).
+- **Remember last opened folder** for the “Open Godot .tres folder” dialog (`globalState`).
+- **Drag column headers** (⋮⋮ handle) to reorder columns; order is saved per opened root folder in **workspace** state and restored on refresh.
+- Webview **`color-scheme`** matches the active VS Code light/dark theme, with updates when the theme changes.
+
+### Changed
+
+- `package.json`: **repository** URL for Marketplace / `vsce` metadata.
+- `.vscodeignore`: exclude `.cursor/` and `.temp/` from the VSIX, ignore Affinity/SVG icon sources used only for authoring, and keep repo-root Godot fixture filenames out of the package.
+
 ## [0.3.0] - 2026-04-21
 
 ### Added

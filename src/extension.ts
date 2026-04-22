@@ -152,6 +152,9 @@ async function openPanel(context: vscode.ExtensionContext, rootPath: string): Pr
             : msg.frozenThroughCol
         );
       }
+      if (msg.type === "columnOrder" && Array.isArray(msg.columns)) {
+        await context.workspaceState.update(columnOrderKey(rootPath), msg.columns);
+      }
       if (msg.type === "applyEdit") {
         await handleApplyEdit(context, rootPath, panel, msg);
       }
@@ -167,6 +170,7 @@ type WebviewMessage =
   | { type: "refresh" }
   | { type: "colWidths"; colWidths: Record<string, number> }
   | { type: "frozenColumns"; frozenThroughCol: string | null }
+  | { type: "columnOrder"; columns: string[] }
   | {
       type: "applyEdit";
       absPath: string;
@@ -184,6 +188,33 @@ function frozenThroughColKey(rootPath: string): string {
   return `godotResourceTable.frozenThroughCol:${rootPath}`;
 }
 
+function columnOrderKey(rootPath: string): string {
+  return `godotResourceTable.columnOrder:${rootPath}`;
+}
+
+/** Apply saved column order; unknown keys are dropped, new keys keep model order after merged tail. */
+function mergeColumnOrder(base: readonly string[], saved: readonly string[] | undefined): string[] {
+  if (saved === undefined || saved.length === 0) {
+    return [...base];
+  }
+  const baseSet: Set<string> = new Set(base);
+  const seen: Set<string> = new Set();
+  const out: string[] = [];
+  for (const k of saved) {
+    if (baseSet.has(k) && !seen.has(k)) {
+      out.push(k);
+      seen.add(k);
+    }
+  }
+  for (const k of base) {
+    if (!seen.has(k)) {
+      out.push(k);
+      seen.add(k);
+    }
+  }
+  return out;
+}
+
 async function pushData(
   context: vscode.ExtensionContext,
   rootPath: string,
@@ -193,9 +224,11 @@ async function pushData(
   const payload: GridPayload = await buildGridPayload(rootPath, files);
   const colWidths: Record<string, number> | undefined = context.workspaceState.get(colWidthKey(rootPath));
   let frozenThroughCol: string | undefined = context.workspaceState.get<string>(frozenThroughColKey(rootPath));
+  const savedOrder: string[] | undefined = context.workspaceState.get<string[]>(columnOrderKey(rootPath));
+  const columnsOrdered: string[] = mergeColumnOrder(payload.columns, savedOrder);
   if (
     frozenThroughCol !== undefined &&
-    !payload.columns.includes(frozenThroughCol)
+    !columnsOrdered.includes(frozenThroughCol)
   ) {
     frozenThroughCol = undefined;
     await context.workspaceState.update(frozenThroughColKey(rootPath), undefined);
@@ -212,7 +245,7 @@ async function pushData(
   void panel.webview.postMessage({
     type: "data",
     rootPath,
-    columns: payload.columns,
+    columns: columnsOrdered,
     rows: payload.rows,
     colWidths: colWidths ?? {},
     frozenThroughCol: frozenThroughCol ?? null,

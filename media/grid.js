@@ -191,6 +191,39 @@
     return String(c.displayText ?? "");
   }
 
+  function clearColumnDragClasses() {
+    for (const el of document.querySelectorAll("thead th.col-drop-target, thead th.col-dragging")) {
+      el.classList.remove("col-drop-target", "col-dragging");
+    }
+  }
+
+  /**
+   * Move `fromCol` next to `refCol`: before ref’s cell if insertAfter is false, after if true.
+   * Display only; order is persisted via the extension workspace state.
+   */
+  function moveColumnRelative(fromCol, refCol, insertAfter) {
+    if (fromCol === refCol) {
+      return;
+    }
+    const next = columns.slice();
+    const fi = next.indexOf(fromCol);
+    if (fi < 0) {
+      return;
+    }
+    next.splice(fi, 1);
+    let ti = next.indexOf(refCol);
+    if (ti < 0) {
+      return;
+    }
+    if (insertAfter) {
+      ti += 1;
+    }
+    next.splice(ti, 0, fromCol);
+    columns = next;
+    vscode.postMessage({ type: "columnOrder", columns: [...columns] });
+    render();
+  }
+
   function render() {
     sortRows();
     $thead.innerHTML = "";
@@ -204,7 +237,56 @@
         th.style.minWidth = w + "px";
         th.style.maxWidth = w + "px";
       }
+      const handle = document.createElement("span");
+      handle.className = "col-drag-handle";
+      handle.textContent = "⋮⋮";
+      handle.setAttribute("draggable", "true");
+      handle.setAttribute("aria-label", `Reorder column “${col}”`);
+      handle.title = "Drag to reorder column";
+      handle.addEventListener("dragstart", (e) => {
+        e.stopPropagation();
+        e.dataTransfer.setData("text/plain", col);
+        e.dataTransfer.effectAllowed = "move";
+        th.classList.add("col-dragging");
+      });
+      handle.addEventListener("dragend", () => {
+        clearColumnDragClasses();
+      });
+      handle.addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+      th.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      });
+      th.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+        if (!e.dataTransfer.types.includes("text/plain")) {
+          return;
+        }
+        th.classList.add("col-drop-target");
+      });
+      th.addEventListener("dragleave", (e) => {
+        const rt = e.relatedTarget;
+        if (rt instanceof Node && th.contains(rt)) {
+          return;
+        }
+        th.classList.remove("col-drop-target");
+      });
+      th.addEventListener("drop", (e) => {
+        e.preventDefault();
+        clearColumnDragClasses();
+        const fromCol = e.dataTransfer.getData("text/plain");
+        if (!fromCol) {
+          return;
+        }
+        const rect = th.getBoundingClientRect();
+        const mid = rect.left + rect.width / 2;
+        const insertAfter = e.clientX >= mid;
+        moveColumnRelative(fromCol, col, insertAfter);
+      });
       const label = document.createElement("span");
+      label.className = "header-label";
       label.textContent = col;
       if (col === sortCol) {
         const mark = document.createElement("span");
@@ -212,13 +294,20 @@
         mark.textContent = sortDir > 0 ? "▲" : "▼";
         label.appendChild(mark);
       }
-      th.appendChild(label);
+      const inner = document.createElement("div");
+      inner.className = "th-inner";
+      inner.appendChild(handle);
+      inner.appendChild(label);
+      th.appendChild(inner);
       th.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         showHeaderContextMenu(e.clientX, e.clientY, col);
       });
       th.addEventListener("click", (e) => {
         if (e.target.classList && e.target.classList.contains("resize")) {
+          return;
+        }
+        if (e.target.closest && e.target.closest(".col-drag-handle")) {
           return;
         }
         if (sortCol === col) {
