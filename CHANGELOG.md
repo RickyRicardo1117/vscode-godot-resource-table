@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-04-22
+
+### Changed
+
+- **README**: logo uses packaged `icon.png`; showcase and command-palette screenshots under `assets/`; usage steps renumbered; requirements note VS Code–compatible editors; attribution to [Godot Resources as Sheets](https://github.com/don-tnowe/godot-resources-as-sheets-plugin) clarified.
+- `package.json`: **description** wording for the Marketplace listing.
+- **Release command** (`.cursor/commands/release.md`): note manual Marketplace / Open VSX upload after the GitHub release.
+
 ## [0.3.1] - 2026-04-22
 
 ### Added

@@ -61,7 +61,8 @@ Run this workflow from the repo root (`vscode-godot-resource-table`).
 
    Adjust `--notes-file` or body flags if you prefer release notes from `CHANGELOG.md` instead of auto-generated commits.
 
+   Upload `godot-resource-table-X.Y.Z.vsix` manually to the Visual Studio Marketplace and/or Open VSX if you use those registries.
+
 ## Optional checks
 
-- Publish to Marketplace: `npx @vscode/vsce publish` (requires publisher token), usually after the GitHub release.
 - Confirm `.vscodeignore` does not exclude files required at runtime (`media/**`, compiled `out/**` via prepublish, etc.).
