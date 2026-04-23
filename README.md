@@ -14,6 +14,11 @@ WARNING: This was fully built with AI, use at your own risk.
 
 - VScode based editors (Vscodium and cursor also work)
 
+## Download
+
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=RickyRicardo.godot-resource-table) — install from VS Code or Cursor.
+- [Open VSX Registry](https://open-vsx.org/extension/RickyRicardo/godot-resource-table) — for VSCodium and other Open VSX–compatible editors.
+
 ## Usage
 
 1. Run via the command palette (screenshot below).
