@@ -17,6 +17,69 @@
   const $meta = document.getElementById("meta");
   const $thead = document.querySelector("#grid thead tr");
   const $tbody = document.querySelector("#grid tbody");
+  const $wrap = document.querySelector(".wrap");
+
+  /**
+   * Full re-renders clear the table; the browser then moves focus and scrolls
+   * (e.g. into the next tabindex cell). Capture scroll + focused cell and restore after rebuild.
+   */
+  function captureScrollAndFocus() {
+    let scrollLeft = 0;
+    let scrollTop = 0;
+    if ($wrap) {
+      scrollLeft = $wrap.scrollLeft;
+      scrollTop = $wrap.scrollTop;
+    }
+    /** @type {{ absPath: string; col: string; kind: "bool" | "editable" } | null} */
+    let restore = null;
+    const ae = document.activeElement;
+    if (ae && $tbody && $tbody.contains(ae)) {
+      const td = ae.closest("td");
+      if (td && td.dataset.absPath && td.dataset.col) {
+        const isBool = td.classList.contains("cell-bool") || td.querySelector("input.cell-bool-input");
+        const isEditable = td.classList.contains("editable");
+        if (isBool || isEditable) {
+          restore = { absPath: td.dataset.absPath, col: td.dataset.col, kind: isBool ? "bool" : "editable" };
+        }
+      }
+    }
+    return { scrollLeft, scrollTop, restore };
+  }
+
+  function scheduleScrollFocusRestore(saved) {
+    if (!$wrap) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      $wrap.scrollLeft = saved.scrollLeft;
+      $wrap.scrollTop = saved.scrollTop;
+      requestAnimationFrame(() => {
+        $wrap.scrollLeft = saved.scrollLeft;
+        $wrap.scrollTop = saved.scrollTop;
+        if (!saved.restore) {
+          return;
+        }
+        const ap = saved.restore.absPath;
+        const col = saved.restore.col;
+        const td = Array.from($tbody.querySelectorAll("td[data-abs-path]")).find(
+          (el) => el.dataset.absPath === ap && el.dataset.col === col
+        );
+        if (!td) {
+          return;
+        }
+        if (saved.restore.kind === "bool") {
+          const inp = td.querySelector("input.cell-bool-input");
+          if (inp) {
+            inp.focus({ preventScroll: true });
+            return;
+          }
+        }
+        if (td.classList.contains("editable") && !td.querySelector("input.cell-bool-input")) {
+          td.focus({ preventScroll: true });
+        }
+      });
+    });
+  }
 
   window.addEventListener("message", (event) => {
     const msg = event.data;
@@ -225,6 +288,7 @@
   }
 
   function render() {
+    const saved = captureScrollAndFocus();
     sortRows();
     $thead.innerHTML = "";
     $tbody.innerHTML = "";
@@ -358,6 +422,8 @@
           td.style.maxWidth = cw + "px";
         }
         const cell = row.cells[col];
+        td.dataset.absPath = row.absPath;
+        td.dataset.col = col;
         if (cell === null || cell === undefined || typeof cell !== "object" || cell.editable !== true) {
           td.className = "readonly";
           if (cell !== null && cell !== undefined && typeof cell === "object" && cell.applicable === false) {
@@ -395,6 +461,7 @@
       $tbody.appendChild(tr);
     }
     scheduleFrozenLayout();
+    scheduleScrollFocusRestore(saved);
   }
 
   function bindTextareaAutosize(ta) {

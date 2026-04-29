@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-04-29
+
+### Fixed
+
+- **Webview grid**: after a full table reload (folder watch, save, refresh, sort, or column reorder), preserve the scroll position and refocus the same cell without forcing scroll, so the view no longer jumps as if focus moved to another row.
+
 ## [0.3.2] - 2026-04-22
 
 ### Changed
