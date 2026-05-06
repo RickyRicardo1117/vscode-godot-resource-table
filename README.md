@@ -17,7 +17,8 @@ WARNING: This was fully built with AI, use at your own risk.
 ## Download
 
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=RickyRicardo.godot-resource-table) — install from VS Code or Cursor.
-- [Open VSX Registry](https://open-vsx.org/extension/RickyRicardo/godot-resource-table) — for VSCodium and other Open VSX–compatible editors.
+- (OUTDATED) [Open VSX Registry](https://open-vsx.org/extension/RickyRicardo/godot-resource-table) — for VSCodium and other Open VSX–compatible editors.
+   - I don't know how to update it on VSX, it's asking me to claim ownership again and I ain't got time for that. Someone send help to their UI/UX team.
 
 ## Usage
 
