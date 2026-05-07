@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-07
+
+### Added
+
+- **Webview grid**: highlight the entire row when a cell is clicked or focused. Controlled by the new `godotResourceTable.highlightRowOnSelect` setting (default `true`). Toggle off in **Settings** to disable. Setting changes apply live without a panel reload.
+
 ## [0.3.3] - 2026-04-29
 
 ### Fixed

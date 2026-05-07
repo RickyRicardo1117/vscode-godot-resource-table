@@ -2,7 +2,7 @@
   "name": "godot-resource-table",
   "displayName": "Godot Resource Table",
   "description": "Edit Godot resource .tres files in a sortable, resizable spreadsheet view.",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "publisher": "RickyRicardo",
   "repository": {
     "type": "git",
@@ -39,6 +39,16 @@
           "when": "godotResourceTable.panelActive"
         }
       ]
+    },
+    "configuration": {
+      "title": "Godot Resource Table",
+      "properties": {
+        "godotResourceTable.highlightRowOnSelect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight the entire row when a cell is selected in the resource table."
+        }
+      }
     }
   },
   "scripts": {

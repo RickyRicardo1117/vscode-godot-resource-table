@@ -12,7 +12,7 @@ tests/**
 .cursor/**
 .temp/**
 **/*.afdesign
-icon_color.svg
+**/icon_color.svg
 # Local Godot fixtures at repo root (not part of the extension)
 air_lock.tres
 buildable_data.gd

@@ -31,6 +31,10 @@ WARNING: This was fully built with AI, use at your own risk.
 
 Columns **file** and **script_class** are read-only. Other columns are the union of all `[resource]` property keys across files; missing keys appear as empty editable cells (saved as strings unless you use a typed value Godot accepts on that line).
 
+## Settings
+
+- `godotResourceTable.highlightRowOnSelect` (boolean, default `true`) — highlight the entire row when a cell is clicked or focused in the resource table.
+
 ## Development
 
 ```bash

@@ -17,6 +17,8 @@ import { collectTresFiles, isPathInsideRoot } from "./tres/walk";
 const PANEL_VIEW_TYPE: string = "godotResourceTable.panel";
 const CTX_ACTIVE: string = "godotResourceTable.panelActive";
 const LAST_ROOT_FOLDER_KEY: string = "godotResourceTable.lastRootFolder";
+const CONFIG_SECTION: string = "godotResourceTable";
+const CONFIG_HIGHLIGHT_ROW: string = "highlightRowOnSelect";
 
 interface PanelSession {
   readonly rootPath: string;
@@ -26,6 +28,11 @@ interface PanelSession {
 
 let session: PanelSession | undefined;
 let ignoreWatchUntilMs: number = 0;
+
+function readHighlightRowOnSelect(): boolean {
+  const cfg: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration(CONFIG_SECTION);
+  return cfg.get<boolean>(CONFIG_HIGHLIGHT_ROW, true);
+}
 
 /** Align native form controls (e.g. `<select>`) with the active VS Code light/dark theme. */
 function webviewColorScheme(): "light" | "dark" {
@@ -117,6 +124,16 @@ async function openPanel(context: vscode.ExtensionContext, rootPath: string): Pr
     });
   });
 
+  const configListener: vscode.Disposable = vscode.workspace.onDidChangeConfiguration((e) => {
+    if (!e.affectsConfiguration(`${CONFIG_SECTION}.${CONFIG_HIGHLIGHT_ROW}`)) {
+      return;
+    }
+    void panel.webview.postMessage({
+      type: "settings",
+      highlightRowOnSelect: readHighlightRowOnSelect(),
+    });
+  });
+
   const disposeWatch: vscode.Disposable = startFolderWatch(rootPath, async () => {
     if (Date.now() < ignoreWatchUntilMs) {
       return;
@@ -127,6 +144,7 @@ async function openPanel(context: vscode.ExtensionContext, rootPath: string): Pr
   panel.onDidDispose(() => {
     disposeWatch.dispose();
     themeListener.dispose();
+    configListener.dispose();
     if (session?.panel === panel) {
       session = undefined;
       void vscode.commands.executeCommand("setContext", CTX_ACTIVE, false);
@@ -249,6 +267,7 @@ async function pushData(
     rows: payload.rows,
     colWidths: colWidths ?? {},
     frozenThroughCol: frozenThroughCol ?? null,
+    highlightRowOnSelect: readHighlightRowOnSelect(),
   });
 }
 

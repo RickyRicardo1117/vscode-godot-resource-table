@@ -12,6 +12,10 @@
   let sortDir = 1; // 1 asc, -1 desc
   /** @type {string | null} Column id to pin with horizontal sticky (this column only). */
   let frozenThroughCol = null;
+  /** @type {boolean} When true, the row containing the focused/clicked cell gets a highlight class. */
+  let highlightRowOnSelect = true;
+  /** @type {string | null} absPath of the row currently considered selected (last-clicked or focused). */
+  let selectedRowAbsPath = null;
 
   const $toolbar = document.getElementById("toolbar");
   const $meta = document.getElementById("meta");
@@ -94,16 +98,70 @@
       if (Object.prototype.hasOwnProperty.call(msg, "frozenThroughCol")) {
         frozenThroughCol = msg.frozenThroughCol;
       }
+      if (Object.prototype.hasOwnProperty.call(msg, "highlightRowOnSelect")) {
+        highlightRowOnSelect = msg.highlightRowOnSelect !== false;
+      }
       if (sortCol && !columns.includes(sortCol)) {
         sortCol = "";
         sortDir = 1;
+      }
+      if (
+        selectedRowAbsPath !== null &&
+        !rows.some((r) => r.absPath === selectedRowAbsPath)
+      ) {
+        selectedRowAbsPath = null;
       }
       if ($meta) {
         $meta.textContent = `${rows.length} resources · ${msg.rootPath || ""}`;
       }
       render();
+      return;
+    }
+    if (msg.type === "settings") {
+      if (Object.prototype.hasOwnProperty.call(msg, "highlightRowOnSelect")) {
+        highlightRowOnSelect = msg.highlightRowOnSelect !== false;
+      }
+      applyRowHighlight();
     }
   });
+
+  function applyRowHighlight() {
+    if (!$tbody) {
+      return;
+    }
+    for (const tr of $tbody.querySelectorAll("tr.row-selected")) {
+      tr.classList.remove("row-selected");
+    }
+    if (
+      !highlightRowOnSelect ||
+      selectedRowAbsPath === null ||
+      selectedRowAbsPath === ""
+    ) {
+      return;
+    }
+    for (const tr of $tbody.children) {
+      const td = tr.firstElementChild;
+      if (
+        td &&
+        td.dataset &&
+        td.dataset.absPath === selectedRowAbsPath
+      ) {
+        tr.classList.add("row-selected");
+        break;
+      }
+    }
+  }
+
+  function setSelectedRowFromCell(td) {
+    if (!td || !td.dataset || !td.dataset.absPath) {
+      return;
+    }
+    if (selectedRowAbsPath === td.dataset.absPath) {
+      return;
+    }
+    selectedRowAbsPath = td.dataset.absPath;
+    applyRowHighlight();
+  }
 
   function frozenThroughIndex() {
     if (!frozenThroughCol || columns.length === 0) {
@@ -461,6 +519,7 @@
       $tbody.appendChild(tr);
     }
     scheduleFrozenLayout();
+    applyRowHighlight();
     scheduleScrollFocusRestore(saved);
   }
 
@@ -681,6 +740,29 @@
   document.getElementById("btnRefresh")?.addEventListener("click", () => {
     vscode.postMessage({ type: "refresh" });
   });
+
+  if ($tbody) {
+    $tbody.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const td = target.closest("td[data-abs-path]");
+      if (td) {
+        setSelectedRowFromCell(td);
+      }
+    });
+    $tbody.addEventListener("focusin", (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const td = target.closest("td[data-abs-path]");
+      if (td) {
+        setSelectedRowFromCell(td);
+      }
+    });
+  }
 
   window.addEventListener("resize", () => {
     scheduleFrozenLayout();
